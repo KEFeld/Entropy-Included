@@ -6,13 +6,15 @@ using UnityEngine;
 public class TileData
 {
     public float temperature;
-    public string material;
+    public Material material;
+    public float mass;
     public GameObject tileObject; // Reference to the tile GameObject
 
-    public TileData(float temp, string mat, GameObject obj)
+    public TileData(float temp, Material mat, float m, GameObject obj)
     {
         temperature = temp;
         material = mat;
+        mass = m;
         tileObject = obj;
     }
 

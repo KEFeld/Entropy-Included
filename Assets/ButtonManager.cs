@@ -17,6 +17,7 @@ public class ButtonController : MonoBehaviour
     public delegate void ButtonClickedHandler(Button clickedButton);
     public static event ButtonClickedHandler OnButtonClicked;
 
+
     private void Start()
     {
         foreach (Button btn in buttons)
