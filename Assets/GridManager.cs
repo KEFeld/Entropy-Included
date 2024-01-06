@@ -15,8 +15,13 @@ public class GridManager : MonoBehaviour
     private Material rock;
     private Material air;
     private Material plutonium;
-    public float simulationSpeed = 200f;
+    public float simulationSpeed = 500f;
+    public float simulationSpeed2 = 0.00001f;
     public bool isPaused = false;
+    private float[,] velocitiesY;
+    private float[,] velocitiesX;
+    private float[,] pressure;
+    public float gravity = 0.3f;
 
 
     private TileData[,] gridData; // 2D array to store tile states
@@ -25,8 +30,11 @@ public class GridManager : MonoBehaviour
 
     void Start()
     {
+        pressure = new float[width, height];
+        velocitiesX = new float[width, height];
+        velocitiesY = new float[width, height];
         rock = new Material("Rock", 2.1f, 1f, 2300f, Resources.Load<Sprite>("rock"));
-        air = new Material("Air", 2.0f, 0.001f, 1.4f, Resources.Load<Sprite>("brown"));
+        air = new Material("Air", 2.0f, 0.001f, 1.4f, Resources.Load<Sprite>("white"));
         plutonium = new Material("RTG", 1.8f, 10f, 12000f, Resources.Load<Sprite>("RTG100"));
         CreateGrid();
         hoverText.text = ""; // Initialize the text as empty
@@ -58,7 +66,7 @@ public class GridManager : MonoBehaviour
         {
             UpdateHoverText();
         }
-        if (buttonController.activeButton == buttonController.buttons[0])
+        if (buttonController.activeButton == buttonController.buttons[0] || buttonController.activeButton == buttonController.buttons[1])
         {
             ColorTilesBasedOnButtonState();
         }
@@ -72,15 +80,20 @@ public class GridManager : MonoBehaviour
 
             // Temporary array to store heat transfer values
             float[,] heatTransfer = new float[width, height];
+            float[,] accelerationsY = new float[width, height];
+            float[,] accelerationsX = new float[width, height];
+            float[,] newVelocitiesY = new float[width, height];
+            float[,] newVelocitiesX = new float[width, height];
+            float[,] massflowY = new float[width, height];
+            float[,] massflowX = new float[width, height];
+            float[,] tflowY = new float[width, height];
+            float[,] tflowX = new float[width, height];
 
             for (int x = 0; x < width; x++)
             {
                 for (int y = 0; y < height; y++)
                 {
                     TileData tile = gridData[x, y];
-
-
-
 
                     // Iterate through neighboring tiles
 
@@ -126,6 +139,101 @@ public class GridManager : MonoBehaviour
 
                     // Update the temperature
                     tile.temperature += temperatureChange * deltaTime * simulationSpeed;
+                    if (tile.material.name == "Air")
+                    {
+                        pressure[x, y] = (tile.temperature + 273) * tile.mass;
+                    }
+                }
+            }
+            //calculate accelerations
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    TileData tile = gridData[x, y];
+
+                    if (x < width - 1)
+                    {
+                        TileData neighborX = gridData[x + 1, y];
+
+                        if (tile.material.name == "Air" && neighborX.material.name == "Air")
+                        {
+                            accelerationsX[x, y] = (pressure[x, y] - pressure[x + 1, y]) / (tile.mass + neighborX.mass);
+                            velocitiesX[x, y] += accelerationsX[x, y] * deltaTime * simulationSpeed * simulationSpeed2;
+                            massflowX[x, y] = velocitiesX[x, y] * (tile.mass + neighborX.mass) / 2;
+                        }
+                    }
+                    if (y < height - 1)
+                    {
+                        TileData neighborY = gridData[x, y + 1];
+
+                        if (tile.material.name == "Air" && neighborY.material.name == "Air")
+                        {
+                            accelerationsY[x, y] = (pressure[x, y] - pressure[x, y + 1]) / (tile.mass + neighborY.mass) - gravity; 
+                            velocitiesY[x, y] += accelerationsY[x, y] * deltaTime * simulationSpeed * simulationSpeed2;
+                            massflowY[x, y] = velocitiesY[x, y] * (tile.mass + neighborY.mass) / 2;
+                        }
+                    }
+                }
+            }
+            //advectionX
+            for (int x = 1; x < width-1; x++)
+            {
+                for (int y = 1; y < height-1; y++)
+                {
+                    float velY = (velocitiesY[x, y] + velocitiesY[x, y - 1] + velocitiesY[x + 1, y] + velocitiesY[x + 1, y - 1]) / 4;
+                    int i = velocitiesX[x, y] > 0 ? -1 : 1;
+                    int j = velY > 0 ? -1 : 1;
+                    velY = Mathf.Abs(velY);
+                    float velX = Mathf.Abs(velocitiesX[x, y]);
+                    newVelocitiesX[x, y] = velocitiesX[x, y] * (1 - velX) * (1 - velY) + velocitiesX[x + i, y] * velX * (1 - velY) + velocitiesX[x, y + j] * (1 - velX) * velY + velocitiesX[x + 1, y + j] * velX * velY; 
+                }
+            }
+            //advectionY
+            for (int x = 1; x < width-1; x++)
+            {
+                for (int y = 1; y < height-1; y++)
+                {
+                    float velX = (velocitiesX[x, y] + velocitiesX[x - 1, y] + velocitiesX[x, y +1] + velocitiesX[x - 1, y + 1]) / 4;
+                    int i = velocitiesY[x, y] > 0 ? -1 : 1;
+                    int j = velX > 0 ? -1 : 1;
+                    velX = Mathf.Abs(velX);
+                    float velY = Mathf.Abs(velocitiesY[x, y]);
+                    newVelocitiesY[x, y] = velocitiesY[x, y] * (1 - velX) * (1 - velY) + velocitiesY[x + i, y] * velX * (1 - velY) + velocitiesY[x, y + j] * (1 - velX) * velY + velocitiesY[x + 1, y + j] * velX * velY;
+                }
+            }
+
+            //move mass
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    velocitiesX[x, y] = newVelocitiesX[x, y];
+                    velocitiesY[x, y] = newVelocitiesY[x, y];
+                    TileData tile = gridData[x, y];
+
+                    if (x < width - 1)
+                    {
+                        TileData neighborX = gridData[x + 1, y];
+
+                        if (tile.material.name == "Air" && neighborX.material.name == "Air")
+                        {
+                            float massflow = newVelocitiesX[x, y] * (tile.mass + neighborX.mass) / 2;
+                            tile.mass -= massflow;
+                            neighborX.mass += massflow; 
+                        }
+                    }
+                    if (y < height - 1)
+                    {
+                        TileData neighborY = gridData[x, y + 1];
+
+                        if (tile.material.name == "Air" && neighborY.material.name == "Air")
+                        {
+                            float massflow = newVelocitiesY[x, y] * (tile.mass + neighborY.mass) / 2;
+                            tile.mass -= massflow;
+                            neighborY.mass += massflow;
+                        }
+                    }
                 }
             }
         }
@@ -157,7 +265,6 @@ public class GridManager : MonoBehaviour
 
                 newTile.GetComponent<SpriteRenderer>().sprite = tileData.material.sprite;
                 gridData[x, y] = tileData;
-                Debug.Log(tileData);
             }
         }
         gridData[50, 80].material = plutonium;
@@ -212,7 +319,7 @@ public class GridManager : MonoBehaviour
 
         if (tileData != null)
         {
-            hoverText.text = tileData.material.name + "\nTemperature:\n" + tileData.temperature.ToString("F1");
+            hoverText.text = tileData.material.name + "\nTemperature:\n" + tileData.temperature.ToString("F1") + "\nPressure:\n" + pressure[Mathf.FloorToInt(tileData.tileObject.transform.position.x), Mathf.FloorToInt(tileData.tileObject.transform.position.y)].ToString("F1") + "\nMass:\n" + tileData.mass + "\nVy:\n" + velocitiesY[Mathf.FloorToInt(tileData.tileObject.transform.position.x), Mathf.FloorToInt(tileData.tileObject.transform.position.y)].ToString("F4");
         }
         else
         {
@@ -244,7 +351,22 @@ public class GridManager : MonoBehaviour
                 }
             }
         }
-        else
+        else if (buttonController.activeButton == buttonController.buttons[1])
+        {
+            // Color tiles based on pressure
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    float value = (pressure[x, y]-300) / 300;
+                    float hue = Mathf.Clamp(240 - (240 * value), 0, 240) / 360.0f; // Hue value normalized to [0, 1]
+
+                    // We keep saturation and brightness at maximum (1) for vivid colors
+                    Color tileColor = Color.HSVToRGB(hue, 1, 1);
+                    gridData[x, y].tileObject.GetComponent<SpriteRenderer>().color = tileColor;
+                }
+            }
+        } else
         {
             // Reset tile colors to default
             for (int x = 0; x < width; x++)
@@ -252,7 +374,7 @@ public class GridManager : MonoBehaviour
                 for (int y = 0; y < height; y++)
                 {
                     //Color tileColor = gridData[x, y].material.name == "rock" ? Color.black : (gridData[x, y].material.name == "plutonium" ? Color.red : Color.white);
-                    gridData[x, y].tileObject.GetComponent<SpriteRenderer>().color = Color.white;
+                    gridData[x, y].tileObject.GetComponent<SpriteRenderer>().color = Color.grey;
                 }
             }
         }
