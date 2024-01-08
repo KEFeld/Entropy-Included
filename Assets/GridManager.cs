@@ -130,8 +130,9 @@ public class GridManager : MonoBehaviour
                     }
                     if (tile.material == plutonium)
                     {
-                        heatTransfer[x, y] += 2346;
+                        heatTransfer[x, y] += 1000;
                     }
+
                 }
             }
 
@@ -152,6 +153,7 @@ public class GridManager : MonoBehaviour
                     }
                 }
             }
+            gridData[70, 130].temperature = -100;
             //calculate accelerations
             for (int x = 0; x < width; x++)
             {
@@ -193,9 +195,10 @@ public class GridManager : MonoBehaviour
                     int j = velY > 0 ? -1 : 1;
                     velY = Mathf.Abs(velY);
                     float velX = Mathf.Abs(velocitiesX[x, y]) * deltaTime * airflowSpeed;
-                    if (velX > 1 || velY > 1)
+                    if (velX > .5 || velY > .5)
                     {
                         Debug.Log("Wind speed dangerous at (" + x + "," + y + ")");
+                        isPaused = true;
                     }
                     velX = Mathf.Clamp(velX, 0, 1);
                     velY = Mathf.Clamp(velY, 0, 1);
@@ -212,9 +215,10 @@ public class GridManager : MonoBehaviour
                     int j = velX > 0 ? -1 : 1;
                     velX = Mathf.Abs(velX);
                     float velY = Mathf.Abs(velocitiesY[x, y]) * deltaTime *airflowSpeed;
-                    if (velX > 1 || velY > 1)
+                    if (velX > .5 || velY > .5)
                     {
                         Debug.Log("Wind speed dangerous at (" + x + "," + y + ")");
+                        isPaused = true;
                     }
                     velX = Mathf.Clamp(velX, 0, 1);
                     velY = Mathf.Clamp(velY, 0, 1);
@@ -237,12 +241,12 @@ public class GridManager : MonoBehaviour
 
                         if (tile.material == air && neighborX.material == air)
                         {
-                            float massflow = newVelocitiesX[x, y] * (tile.mass + neighborX.mass) / 2;
-                            massChange[x, y] -= massflow*deltaTime*airflowSpeed;
-                            massChange[x + 1, y] += massflow*deltaTime*airflowSpeed;
-                            thermalEnergyChange[x, y] -= massflow * (tile.temperature+273)*deltaTime*airflowSpeed;
-                            thermalEnergyChange[x + 1, y] += massflow * (tile.temperature+273)*deltaTime*airflowSpeed;
-
+                            float massflow = newVelocitiesX[x, y] * (tile.mass + neighborX.mass) / 2 * deltaTime * airflowSpeed;
+                            massChange[x, y] -= massflow;
+                            massChange[x + 1, y] += massflow;
+                            float energyflow = ((tile.temperature + neighborX.temperature) / 2 + 273) * massflow;
+                            thermalEnergyChange[x, y] -= energyflow;
+                            thermalEnergyChange[x + 1, y] += energyflow;
                         }
                     }
                     if (y < height - 1)
@@ -251,11 +255,12 @@ public class GridManager : MonoBehaviour
 
                         if (tile.material == air && neighborY.material == air)
                         {
-                            float massflow = newVelocitiesY[x, y] * (tile.mass + neighborY.mass) / 2;
-                            massChange[x, y] -= massflow*deltaTime*airflowSpeed;
-                            massChange[x, y + 1] += massflow*deltaTime*airflowSpeed;
-                            thermalEnergyChange[x, y] -= massflow * (tile.temperature+273)*deltaTime*airflowSpeed;
-                            thermalEnergyChange[x, y + 1] += massflow * (tile.temperature+273)*deltaTime*airflowSpeed;
+                            float massflow = newVelocitiesY[x, y] * (tile.mass + neighborY.mass) / 2 * deltaTime * airflowSpeed;
+                            massChange[x, y] -= massflow;
+                            massChange[x, y + 1] += massflow;
+                            float energyflow = ((tile.temperature + neighborY.temperature) / 2 + 273) * massflow;
+                            thermalEnergyChange[x, y] -= energyflow;
+                            thermalEnergyChange[x, y + 1] += energyflow;
                         }
                     }
                 }
@@ -316,6 +321,18 @@ public class GridManager : MonoBehaviour
             gridData[45, y].material = aluminium;
             gridData[45, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
             gridData[45, y].mass = aluminium.density;
+        }
+        for (int x = 70; x < 80; x++)
+        {
+            gridData[x, 130].material = aluminium;
+            gridData[x, 130].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+            gridData[x, 130].mass = aluminium.density;
+        }
+        for (int y = 150; y > 130; y--)
+        {
+            gridData[70, y].material = aluminium;
+            gridData[70, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+            gridData[70, y].mass = aluminium.density;
         }
 
     }
