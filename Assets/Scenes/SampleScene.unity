@@ -654,7 +654,7 @@ Transform:
   m_GameObject: {fileID: 519420028}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 45, y: 80, z: -10}
+  m_LocalPosition: {x: 3, y: 1, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -711,8 +711,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 30, y: 30}
-  m_SizeDelta: {x: 88.9299, y: 116.6051}
+  m_AnchoredPosition: {x: 20.5424, y: 30}
+  m_SizeDelta: {x: 102.4405, y: 317.9201}
   m_Pivot: {x: 0, y: 0}
 --- !u!114 &618665840
 MonoBehaviour:
@@ -783,13 +783,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tilePrefab: {fileID: 5027224814130342003, guid: 1f59b5f3078ed61498a93370fb11342c, type: 3}
   width: 100
-  height: 200
+  height: 100
   hoverText: {fileID: 679359660}
   buttonController: {fileID: 1117464185}
-  thermalConductivitySpeedup: 20
-  airflowSpeed: 0.1
-  isPaused: 0
+  thermalConductivitySpeedup: 5
+  airflowSpeed: 1
+  isPaused: 1
   gravity: 0.3
+  friction: 0.993
 --- !u!4 &648148135
 Transform:
   m_ObjectHideFlags: 0
@@ -839,8 +840,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0.00012207031, y: -0.0007286072}
-  m_SizeDelta: {x: 88.93, y: 116.6}
+  m_AnchoredPosition: {x: -2.0267982, y: 0.000015258789}
+  m_SizeDelta: {x: 98.387, y: 317.92}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &679359660
 MonoBehaviour:
@@ -889,8 +890,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 10
-  m_fontSizeBase: 10
+  m_fontSize: 12
+  m_fontSizeBase: 12
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18

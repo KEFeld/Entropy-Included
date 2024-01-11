@@ -19,6 +19,12 @@ public class Material
         density = rho;
         sprite = s;
     }
-
-    // Additional methods to handle data can be added here
 }
+
+
+public struct Gas
+{
+    public string name;
+    public float molarMass;
+}
+
