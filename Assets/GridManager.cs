@@ -11,24 +11,34 @@ public class GridManager : MonoBehaviour
     public int width = 10; // Width of the grid
     public int height = 10; // Height of the grid
     public TextMeshProUGUI hoverText; // Public reference to the UI Text element
+    public float thermalConductivitySpeedup = 100f; // max safe ~100
+    public float airflowSpeed = 0.00001f;
     public ButtonController buttonController;
+    public bool isPaused = false;
+    public float gravity = 0.3f;
+    public float friction;
+
     private Material rock;
     private Material air;
     private Material plutonium;
     private Material aluminium;
+    private Material peltier;
+    private Material rockwool;
     private Gas[] gasses;
-    public float thermalConductivitySpeedup = 100f; // max safe ~100
-    public float airflowSpeed = 0.00001f;
-    public bool isPaused = false;
+    private TemperatureAffecting[] temperatureAffectingBuildings = new TemperatureAffecting[3];
+
+
+
+
     private float[,] velocitiesY;
     private float[,] velocitiesX;
     private float[,] pressure;
-    public float gravity = 0.3f;
+
     private Sprite arrow;
-    public float friction;
 
 
-    private TileData[,] gridData; // 2D array to store tile states
+
+    public TileData[,] gridData; // 2D array to store tile states
 
     private bool isDragging = false; // To track if dragging started outside of UI elements
 
@@ -44,12 +54,15 @@ public class GridManager : MonoBehaviour
             new Gas { name = "Nitrogen", molarMass = 0.028f },
             new Gas { name = "Carbondioxide", molarMass = 0.044f }
         };
-        
-        
+
+
+ 
         rock = new Material("Rock", 0.8f, 3f, 2600f, Resources.Load<Sprite>("rock"));
         air = new Material("Air", 2.0f, 0.0025f, 1.4f, Resources.Load<Sprite>("white"));
         plutonium = new Material("RTG", 2.8f, 10f, 5000f, Resources.Load<Sprite>("RTG100"));
         aluminium = new Material("Aluminium", 0.9f, 205f, 2700f, Resources.Load<Sprite>("metal"));
+        peltier = new Material("Peltier", 2.0f, 0, 2000, Resources.Load<Sprite>("peltier"));
+        rockwool = new Material("Rockwool", 0.8f, 0.04f, 80f, Resources.Load<Sprite>("rockwool"));
         hoverText.text = ""; // Initialize the text as empty
         ButtonController.OnButtonClicked += HandleButtonClicked;
         CreateGrid();
@@ -190,17 +203,15 @@ public class GridManager : MonoBehaviour
                                 heatTransfer[x, y] -= heatTransferPerSecond;
                                 heatTransfer[x, y + 1] += heatTransferPerSecond;
                             }
-                        }
-                        
+                        }   
                     }
-                    if (tile.material == plutonium)
-                    {
-                        heatTransfer[x, y] += 1000;
-                    }
-
                 }
             }
 
+            foreach (var building in temperatureAffectingBuildings)
+            {
+                building.UpdateTemperature(heatTransfer, gridData);
+            }
             // Apply the heat transfer calculations to update temperatures
             for (int x = 0; x < width; x++)
             {
@@ -219,7 +230,7 @@ public class GridManager : MonoBehaviour
                     }
                 }
             }
-            gridData[26, 96].temperature = 150;
+
 
 
             //calculate accelerations
@@ -429,28 +440,70 @@ public class GridManager : MonoBehaviour
                 gridData[x, y] = tileData;
             }
         }
+        { //scope limiter
+            int y = 96;
+            for (int x = 20; x < 30; x++)
+            {
+                gridData[x, y] = new SolidTileData(aluminium.density, 300, aluminium, gridData[x, y].tileObject);
+                gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+            }
+            y = 28;
+            for (int x = 45; x < 67; x++)
+            {
+                gridData[x, y] = new SolidTileData(aluminium.density, 400, aluminium, gridData[x, y].tileObject);
+                gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+            }
+            y = 80;
+            for (int x = 30; x < 50; x++)
+            {
+                gridData[x, y] = new SolidTileData(aluminium.density, 300, aluminium, gridData[x, y].tileObject);
+                gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+            }
+            y = 30;
+            for (int x = 66; x < 90; x++)
+            {
+                gridData[x, y] = new SolidTileData(aluminium.density, 300, aluminium, gridData[x, y].tileObject);
+                gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+            }
+            y = 29;
+            for (int x = 45; x < 90; x++)
+            {
+                gridData[x, y] = new SolidTileData(rockwool.density, 300, rockwool, gridData[x, y].tileObject);
+                gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = rockwool.sprite;
+            }
+        }
+        {
+            int x = 94;
+            for (int y = 0; y < 9; y++)
+            {
+                gridData[x, y] = new SolidTileData(aluminium.density, 400, aluminium, gridData[x, y].tileObject);
+                gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+            }
+            x = 30;
+            for (int y = 96; y > 70; y--)
+            {
+                gridData[x, y] = new SolidTileData(aluminium.density, 200, aluminium, gridData[x, y].tileObject);
+                gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+            }
+        }
         gridData[93, 7] = new SolidTileData(5000, 400, plutonium, gridData[93, 7].tileObject);
+
+        gridData[66, 29] = new SolidTileData(5000, 300, peltier, gridData[66, 29].tileObject);
+        gridData[93, 7].tileObject.AddComponent<RTG>();
+        temperatureAffectingBuildings[0] = gridData[93, 7].tileObject.GetComponent<RTG>();
+
+        gridData[26, 96].tileObject.AddComponent<TemperatureFixer>();
+        gridData[26, 96].tileObject.GetComponent<TemperatureFixer>().SetTarget(150);
+        temperatureAffectingBuildings[1] = gridData[26, 96].tileObject.GetComponent<TemperatureFixer>();
+
+        gridData[66, 29].tileObject.AddComponent<Peltier>();
+        gridData[66, 29].tileObject.GetComponent<Peltier>().setPower(400);
+        temperatureAffectingBuildings[2] = gridData[66, 29].tileObject.GetComponent<Peltier>();
+
+
         gridData[93, 7].tileObject.GetComponent<SpriteRenderer>().sprite = plutonium.sprite;
-        for (int x = 20; x<30;x++)
-        {
-            gridData[x, 96] = new SolidTileData(aluminium.density, 300, aluminium, gridData[x, 96].tileObject);
-            gridData[x, 96].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
-        }
-        for (int y = 0; y < 9; y++)
-        {
-            gridData[94, y] = new SolidTileData(aluminium.density, 200, aluminium, gridData[94, y].tileObject);
-            gridData[94, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
-        }
-        for (int y = 96; y > 70; y--)
-        {
-            gridData[30, y] = new SolidTileData(aluminium.density, 200, aluminium, gridData[30, y].tileObject);
-            gridData[30, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
-        }
-        for (int x = 30; x < 50; x++)
-        {
-            gridData[x, 80] = new SolidTileData(aluminium.density, 200, aluminium, gridData[x, 80].tileObject);
-            gridData[x, 80].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
-        }
+        gridData[66, 29].tileObject.GetComponent<SpriteRenderer>().sprite = peltier.sprite;
+
     }
 
     void ChangeTileMaterialUnderMouse()
@@ -502,40 +555,19 @@ public class GridManager : MonoBehaviour
 
         if (tileData != null)
         {
+            hoverText.text = tileData.hoverText();
             if (tileData.isGas)
             {
-                GasTileData gasTileData = (GasTileData)tileData;
+
                 int x = Mathf.FloorToInt(tileData.tileObject.transform.position.x);
                 int y = Mathf.FloorToInt(tileData.tileObject.transform.position.y);
-                float totalGas = gasTileData.TotalGas();
-                hoverText.text = ("Gas\nOxygen: " + (gasTileData.gasses[0] * 100 / totalGas).ToString("F1") +
-                    "%\nHydrogen: " + (gasTileData.gasses[1] * 100 / totalGas).ToString("F1") +
-                    "%\nNitrogen: " + (gasTileData.gasses[2] * 100 / totalGas).ToString("F1") +
-                    "%\nCarbondioxide: " + (gasTileData.gasses[3] * 100 / totalGas).ToString("F1") +
-                    "%\nPressure: " + pressure[x, y].ToString("F3") +
-                    "kPa\nTemperature: " + tileData.temperature.ToString("F4") + "K" +
-                    "\nMass: " + tileData.mass.ToString("F5") + " kg" +
-                    "\nAirflows:\nTop: " + velocitiesY[x, y] + 
+                float totalGas = (tileData as GasTileData).TotalGas();
+                hoverText.text += 
+                    "\n\nAirflows:\nTop: " + velocitiesY[x, y] + 
                     "\nBottom: " + (y == 0 ? 0 : velocitiesY[x, y - 1]) + 
                     "\nLeft: " + (x == 0 ? 0 : velocitiesX[x - 1, y]) + 
-                    "\nRigth: " + velocitiesX[x, y] +
-                    "\nThermal Energy: " + (totalGas * tileData.temperature) +
-                    "\n( " + x + " , " + y + " )");
+                    "\nRigth: " + velocitiesX[x, y];
 
-            }
-            else
-            {
-                int x = Mathf.FloorToInt(tileData.tileObject.transform.position.x);
-                int y = Mathf.FloorToInt(tileData.tileObject.transform.position.y);
-                hoverText.text = tileData.material.name +
-                    "\nTemperature:\n" + tileData.temperature.ToString("F1") + "K" + // \u00B0
-                    ((tileData.isGas) ? "\nPressure:\n" + pressure[Mathf.FloorToInt(tileData.tileObject.transform.position.x), Mathf.FloorToInt(tileData.tileObject.transform.position.y)].ToString("F1") + " kPa" : "") +
-                    "\nMass:\n" + tileData.mass.ToString("F2") + " kg" + ((tileData.material == plutonium) ? "\nPlutonium-244 emitting 2346W" : "") +
-                    "\nAirflows:\nTop: " + velocitiesY[x, y] +
-                    "\nBottom: " + (y == 0 ? 0 : velocitiesY[x, y - 1]) +
-                    "\nLeft: " + (x == 0 ? 0 : velocitiesX[x - 1, y]) +
-                    "\nRigth: " + velocitiesX[x, y] +
-                    "\n( " + x + " , " + y + " )";
             }
         }
         else
