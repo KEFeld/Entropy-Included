@@ -18,18 +18,18 @@ public class GridManager : MonoBehaviour
     public float gravity = 0.3f;
     public float friction;
 
-    private Material rock;
+    private Solid rock;
     private Material air;
     private Material plutonium;
-    private Material aluminium;
+    private Solid aluminium;
     private Material peltier;
-    private Material rockwool;
-    private Material ice;
+    private Solid rockwool;
+    private Solid ice;
+    private Liquid water;
+
     private Gas[] gasses;
-    private TemperatureAffecting[] temperatureAffectingBuildings = new TemperatureAffecting[3];
-
-
-
+    private TemperatureAffecting[] temperatureAffectingBuildings = new TemperatureAffecting[3]; //Should be a list. For some reason this script throws errors when attempting to make lists.
+                                                                                                //For now number of temperature affecting buildings is fixed. To be resolved.
 
     private float[,] velocitiesY;
     private float[,] velocitiesX;
@@ -39,7 +39,7 @@ public class GridManager : MonoBehaviour
 
 
 
-    public TileData[,] gridData; // 2D array to store tile states
+    public TileData<Material>[,] gridData; // 2D array to store tile states
 
     private bool isDragging = false; // To track if dragging started outside of UI elements
 
@@ -59,13 +59,15 @@ public class GridManager : MonoBehaviour
 
 
  
-        rock = new Material("Rock", 0.8f, 3f, 2600f, 1983f, 1787, Resources.Load<Sprite>("rock"));
-        air = new Material("Air", 2.0f, 0.0025f, 1.4f, 0, 0, Resources.Load<Sprite>("white"));
-        plutonium = new Material("RTG", 2.8f, 10f, 5000f, 10000, 0, Resources.Load<Sprite>("RTG100"));
-        aluminium = new Material("Aluminium", 0.9f, 205f, 2700f, 933f, 376f, Resources.Load<Sprite>("metal"));
-        peltier = new Material("Peltier", 2.0f, 0, 2000, 10000, 0, Resources.Load<Sprite>("peltier"));
-        rockwool = new Material("Rockwool", 0.8f, 0.04f, 80f, 1983f, 1787, Resources.Load<Sprite>("rockwool"));
-        ice = new Material("Ice", 2.1f, 2.2f, 1000, 273, 334, Resources.Load<Sprite>("ice"));
+        rock = new Solid("Rock", 0.8f, 3f, 2600f, 1983f, 1787, Resources.Load<Sprite>("rock"));
+        air = new Material("Air", 2.0f, 0.0025f, 1.4f, Resources.Load<Sprite>("white"));
+        plutonium = new Solid("RTG", 2.8f, 10f, 5000f, 10000, 0, Resources.Load<Sprite>("RTG100"));
+        aluminium = new Solid("Aluminium", 0.9f, 205f, 2700f, 933f, 376f, Resources.Load<Sprite>("metal"));
+        peltier = new Solid("Peltier", 2.0f, 0, 2000, 10000, 0, Resources.Load<Sprite>("peltier"));
+        rockwool = new Solid("Rockwool", 0.8f, 0.04f, 80f, 1983f, 1787, Resources.Load<Sprite>("rockwool"));
+        ice = new Solid("Ice", 2.1f, 2.2f, 1000, 273, 334, Resources.Load<Sprite>("ice"));
+        water = new Liquid("Water", 4, 2f, 0, 6f, 1000, 2260f, Resources.Load<Sprite>("water"));
+
 
         buttonController.materials = new Material[] { aluminium, rock, rockwool, ice };
 
@@ -73,7 +75,6 @@ public class GridManager : MonoBehaviour
 
         hoverText.text = ""; // Initialize the text as empty
         ButtonController.OnOverlayClicked += HandleOverlayClicked;
-        ButtonController.OnBuildClicked += HandleBuildClicked;
 
         CreateGrid();
         ColorTilesBasedOnOverlayState();
@@ -82,7 +83,7 @@ public class GridManager : MonoBehaviour
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.Space)) isPaused = !isPaused;
-        if (Input.GetKeyDown(KeyCode.Escape)) ColorTilesBasedOnOverlayState();
+
 
         // Check for the initial mouse down event
         if (Input.GetMouseButtonDown(0) && !IsPointerOverUIObject())
@@ -109,6 +110,7 @@ public class GridManager : MonoBehaviour
         {
             ColorTilesBasedOnOverlayState();
         }
+        if (Input.GetKeyDown(KeyCode.Escape)) ResetTilesColorsToDefault();
     }
 
     void FixedUpdate()
@@ -224,6 +226,8 @@ public class GridManager : MonoBehaviour
             {
                 building.UpdateTemperature(heatTransfer, gridData);
             }
+
+
             // Apply the heat transfer calculations to update temperatures
             for (int x = 0; x < width; x++)
             {
@@ -242,6 +246,8 @@ public class GridManager : MonoBehaviour
                     }
                 }
             }
+
+
 
 
 
@@ -423,7 +429,6 @@ public class GridManager : MonoBehaviour
     {
         // Unsubscribe to prevent memory leaks
         ButtonController.OnOverlayClicked -= HandleOverlayClicked;
-        ButtonController.OnBuildClicked -= HandleBuildClicked;
     }
 
     void CreateGrid()
@@ -446,7 +451,7 @@ public class GridManager : MonoBehaviour
                 }
                 else
                 {
-                    float[] amounts = new float[4]{ Mathf.Pow(1.003f, (50 - y)) * 12, 0, Mathf.Pow(1.003f, (50 - y)) * 38, .15f };
+                    float[] amounts = new float[5]{ Mathf.Pow(1.003f, (50 - y)) * 12, 0, Mathf.Pow(1.003f, (50 - y)) * 38, .15f, 0 };
                     tileData = new GasTileData(temperature[x, y] * 60f + 250f, air, amounts, newTile);
                 }
                 newTile.GetComponent<SpriteRenderer>().sprite = tileData.material.sprite;
@@ -526,7 +531,7 @@ public class GridManager : MonoBehaviour
         {
             
             int i = (int)buttonController.GetActiveBuildButtonIndex();
-            Material material = buttonController.materials[i]; 
+            Solid material = buttonController.materials[i]; 
             GameObject hoveredTile = tileData.tileObject;
             if (tileData.isGas)
             {
@@ -542,7 +547,7 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    TileData Locate()
+    TileData<Material> Locate()
     {
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
@@ -612,11 +617,6 @@ public class GridManager : MonoBehaviour
         }
 
         ColorTilesBasedOnOverlayState();
-    }
-
-    private void HandleBuildClicked(Button clickedButton)
-    {
-
     }
 
     void SetSpritesToArrows()
@@ -704,26 +704,30 @@ public class GridManager : MonoBehaviour
                 }
             }
         }
-        else
-        {
-            // Reset tile colors to default
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < height; y++)
-                {
-                    //Color tileColor = gridData[x, y].material.name == "rock" ? Color.black : (gridData[x, y].material.name == "plutonium" ? Color.red : Color.white);
-                    if (gridData[x, y].isGas)
-                    {
-                        gridData[x, y].tileObject.GetComponent<SpriteRenderer>().color = Color.grey;
-                    }
-                    else
-                    {
-                        gridData[x, y].tileObject.GetComponent<SpriteRenderer>().color = Color.white;
-                    }
+        else ResetTilesColorsToDefault();
+    }
 
+    void ResetTilesColorsToDefault()
+    {
+
+        // Reset tile colors to default
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                //Color tileColor = gridData[x, y].material.name == "rock" ? Color.black : (gridData[x, y].material.name == "plutonium" ? Color.red : Color.white);
+                if (gridData[x, y].isGas)
+                {
+                    gridData[x, y].tileObject.GetComponent<SpriteRenderer>().color = Color.grey;
                 }
+                else
+                {
+                    gridData[x, y].tileObject.GetComponent<SpriteRenderer>().color = Color.white;
+                }
+
             }
         }
+
     }
 
     private static Color ColorFromHSV(double hue, double saturation, double value)

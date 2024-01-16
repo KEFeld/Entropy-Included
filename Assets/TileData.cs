@@ -7,16 +7,17 @@ public enum Gasses
     oxygen,
     hydrogen,
     nitrogen,
-    carbondioxide
+    carbondioxide,
+    water
 }
 
 [System.Serializable]
-public class TileData
+public class TileData<T> where T : Material
 {
     public bool isGas;
     public float temperature;
     public float mass;
-    public Material material;
+    public T material;
     public GameObject tileObject; // Reference to the tile GameObject
 
     public TileData(float temp, Material mat, GameObject obj)
@@ -29,28 +30,51 @@ public class TileData
     public virtual string hoverText()
     {
         return "";
-        
+
     }
 
     public virtual void ChangeTemperature(float energyChange)
     {
-        
+
     }
 }
 
-public class SolidTileData : TileData
+public class SolidTileData : TileData<Solid>
 {
+    public bool melting = false;
+    public float fractionMolten = 0;
+    public new Solid material;
 
-
-    public SolidTileData(float m, float temp, Material mat, GameObject obj) : base(temp, mat, obj)
+    public SolidTileData(float m, float temp, Solid mat, GameObject obj) : base(temp, obj)
     {
+        material = mat;
         mass = m;
         isGas = false;
     }
 
     public override void ChangeTemperature(float energyChange)
     {
-        this.temperature += energyChange / (this.mass * this.material.heatCapacity);
+
+        if (!melting)
+        {
+            this.temperature += energyChange / (this.mass * this.material.heatCapacity);
+            if (temperature > material.meltingPoint)
+            {
+                melting = true;
+                fractionMolten = material.heatCapacity * (temperature - material.meltingPoint) / (material.heatOfFusion * 1000);
+                temperature = material.meltingPoint;
+            }
+        }
+        else
+        {
+            fractionMolten += energyChange / (material.heatOfFusion * 1000 * mass);
+            if (fractionMolten < 0)
+            {
+                melting = false;
+                temperature = fractionMolten * material.heatOfFusion * 1000 / material.heatCapacity + material.meltingPoint;
+                fractionMolten = 0;
+            }
+        }
     }
 
     public override string hoverText()
@@ -62,13 +86,15 @@ public class SolidTileData : TileData
             "\nThermal Conductivity:\n" + material.thermalConductivity.ToString("F1") + " W/mK" +
             "\nSpecifc heat capacity:\n" + material.heatCapacity.ToString("F1") + " J/kgK" +
             "\nHeat Capacity:\n" + (material.heatCapacity * mass).ToString("F1") + " J/K" +
+            "\nHeat of fusion:\n" + material.heatOfFusion.ToString("F0") + " kJ/kg" +
+            (melting ? ("\nFraction molten:\n" + (fractionMolten*100).ToString("F1") + " %") : "") +
             "\n\n( " + tileObject.transform.position.x + " , " + tileObject.transform.position.y + " )\n\n" + building?.hoverText();
 
     }
 
 }
 
-public class GasTileData : TileData
+public class GasTileData : TileData<Material>
 {
     public float[] gasses;
 
