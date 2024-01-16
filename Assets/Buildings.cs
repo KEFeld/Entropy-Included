@@ -42,7 +42,7 @@ public class Peltier : Buildings, TemperatureAffecting
 
     int horizontal = 0; //0 if in up-down orientation, 1 if left-right
     int flipped = 1; //1 if downside or left side hot, -1 if reversed 
-    float intendedPower = 400;
+    float intendedPower = 200;
     float power;
     float tHot;
     float tCold;
@@ -63,7 +63,7 @@ public class Peltier : Buildings, TemperatureAffecting
         carnot = Carnot(tHot, tCold);
 
         flowIn = intendedPower / carnot;
-        float maxTFlow = Mathf.Min(1000, 50 * (tHot - tCold));
+        float maxTFlow = Mathf.Min(500, 20 * (tHot - tCold));
         if (flowIn > maxTFlow)
         {
             flowIn = maxTFlow;

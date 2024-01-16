@@ -24,6 +24,7 @@ public class GridManager : MonoBehaviour
     private Material aluminium;
     private Material peltier;
     private Material rockwool;
+    private Material ice;
     private Gas[] gasses;
     private TemperatureAffecting[] temperatureAffectingBuildings = new TemperatureAffecting[3];
 
@@ -52,26 +53,37 @@ public class GridManager : MonoBehaviour
             new Gas { name = "Oxygen", molarMass = 0.032f },
             new Gas { name = "Hydrogen", molarMass = 0.002f },
             new Gas { name = "Nitrogen", molarMass = 0.028f },
-            new Gas { name = "Carbondioxide", molarMass = 0.044f }
+            new Gas { name = "Carbondioxide", molarMass = 0.044f },
+            new Gas { name = "water", molarMass = 0.018f}
         };
 
 
  
-        rock = new Material("Rock", 0.8f, 3f, 2600f, Resources.Load<Sprite>("rock"));
-        air = new Material("Air", 2.0f, 0.0025f, 1.4f, Resources.Load<Sprite>("white"));
-        plutonium = new Material("RTG", 2.8f, 10f, 5000f, Resources.Load<Sprite>("RTG100"));
-        aluminium = new Material("Aluminium", 0.9f, 205f, 2700f, Resources.Load<Sprite>("metal"));
-        peltier = new Material("Peltier", 2.0f, 0, 2000, Resources.Load<Sprite>("peltier"));
-        rockwool = new Material("Rockwool", 0.8f, 0.04f, 80f, Resources.Load<Sprite>("rockwool"));
+        rock = new Material("Rock", 0.8f, 3f, 2600f, 1983f, 1787, Resources.Load<Sprite>("rock"));
+        air = new Material("Air", 2.0f, 0.0025f, 1.4f, 0, 0, Resources.Load<Sprite>("white"));
+        plutonium = new Material("RTG", 2.8f, 10f, 5000f, 10000, 0, Resources.Load<Sprite>("RTG100"));
+        aluminium = new Material("Aluminium", 0.9f, 205f, 2700f, 933f, 376f, Resources.Load<Sprite>("metal"));
+        peltier = new Material("Peltier", 2.0f, 0, 2000, 10000, 0, Resources.Load<Sprite>("peltier"));
+        rockwool = new Material("Rockwool", 0.8f, 0.04f, 80f, 1983f, 1787, Resources.Load<Sprite>("rockwool"));
+        ice = new Material("Ice", 2.1f, 2.2f, 1000, 273, 334, Resources.Load<Sprite>("ice"));
+
+        buttonController.materials = new Material[] { aluminium, rock, rockwool, ice };
+
+        buttonController.CreateBuildButtons(buttonController.materials);
+
         hoverText.text = ""; // Initialize the text as empty
-        ButtonController.OnButtonClicked += HandleButtonClicked;
+        ButtonController.OnOverlayClicked += HandleOverlayClicked;
+        ButtonController.OnBuildClicked += HandleBuildClicked;
+
         CreateGrid();
-        ColorTilesBasedOnButtonState();
+        ColorTilesBasedOnOverlayState();
     }
 
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.Space)) isPaused = !isPaused;
+        if (Input.GetKeyDown(KeyCode.Escape)) ColorTilesBasedOnOverlayState();
+
         // Check for the initial mouse down event
         if (Input.GetMouseButtonDown(0) && !IsPointerOverUIObject())
         {
@@ -79,7 +91,7 @@ public class GridManager : MonoBehaviour
         }
 
         // If dragging and the left mouse button is held down, change tile color
-        if (isDragging && Input.GetMouseButton(0) && buttonController.activeButton == buttonController.buttons[2])
+        if (isDragging && Input.GetMouseButton(0) && buttonController.activeBuild is not null)
         {
             ChangeTileMaterialUnderMouse();
         }
@@ -88,14 +100,14 @@ public class GridManager : MonoBehaviour
         if (Input.GetMouseButtonUp(0))
         {
             isDragging = false;
-        }
+        } 
         if (!isDragging)
         {
             UpdateHoverText();
         }
-        if (buttonController.activeButton == buttonController.buttons[0] || buttonController.activeButton == buttonController.buttons[1] || buttonController.activeButton == buttonController.buttons[3])
+        if (buttonController.activeOverlay is not null)
         {
-            ColorTilesBasedOnButtonState();
+            ColorTilesBasedOnOverlayState();
         }
     }
 
@@ -410,7 +422,8 @@ public class GridManager : MonoBehaviour
     private void OnDestroy()
     {
         // Unsubscribe to prevent memory leaks
-        ButtonController.OnButtonClicked -= HandleButtonClicked;
+        ButtonController.OnOverlayClicked -= HandleOverlayClicked;
+        ButtonController.OnBuildClicked -= HandleBuildClicked;
     }
 
     void CreateGrid()
@@ -509,13 +522,23 @@ public class GridManager : MonoBehaviour
     void ChangeTileMaterialUnderMouse()
     {
         TileData tileData = Locate();
-        if (tileData != null)
+        if (tileData != null && buttonController.activeBuild != null)
         {
+            
+            int i = (int)buttonController.GetActiveBuildButtonIndex();
+            Material material = buttonController.materials[i]; 
             GameObject hoveredTile = tileData.tileObject;
-            tileData.material = rock;
-            tileData.mass = 2300f;
-            hoveredTile.GetComponent<SpriteRenderer>().sprite = Resources.Load<Sprite>("rock");
-            // change material and set sprite
+            if (tileData.isGas)
+            {
+                gridData[Mathf.FloorToInt(hoveredTile.transform.position.x), Mathf.FloorToInt(hoveredTile.transform.position.y)] = new SolidTileData(material.density, 300f, material, hoveredTile);
+            }
+            else
+            {
+                tileData.material = material;
+                tileData.mass = material.density;
+                hoveredTile.GetComponent<SpriteRenderer>().sprite = material.sprite;
+                // change material and set sprite
+            }
         }
     }
 
@@ -576,11 +599,11 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    private void HandleButtonClicked(Button clickedButton)
+    private void HandleOverlayClicked(Button clickedButton)
     {
         // Check which button was clicked and update colors accordingly
 
-        if (buttonController.activeButton == buttonController.buttons[3])
+        if (buttonController.activeOverlay == buttonController.overlays[2])
         {
             SetSpritesToArrows();
         } else
@@ -588,7 +611,12 @@ public class GridManager : MonoBehaviour
             RemoveArrows();
         }
 
-        ColorTilesBasedOnButtonState();
+        ColorTilesBasedOnOverlayState();
+    }
+
+    private void HandleBuildClicked(Button clickedButton)
+    {
+
     }
 
     void SetSpritesToArrows()
@@ -619,9 +647,9 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    void ColorTilesBasedOnButtonState()
+    void ColorTilesBasedOnOverlayState()
     {
-        if (buttonController.activeButton == buttonController.buttons[0])
+        if (buttonController.activeOverlay == buttonController.overlays[0])
         {
             // Color tiles based on temperature
             for (int x = 0; x < width; x++)
@@ -637,7 +665,7 @@ public class GridManager : MonoBehaviour
                 }
             }
         }
-        else if (buttonController.activeButton == buttonController.buttons[1])
+        else if (buttonController.activeOverlay == buttonController.overlays[1])
         {
             // Color tiles based on pressure
             for (int x = 0; x < width; x++)
@@ -653,7 +681,7 @@ public class GridManager : MonoBehaviour
                 }
             }
         }
-        else if (buttonController.activeButton == buttonController.buttons[3])
+        else if (buttonController.activeOverlay == buttonController.overlays[2])
         {
             // Color tiles and set arrow sprite based on wind
             for (int x = 0; x < width; x++)
