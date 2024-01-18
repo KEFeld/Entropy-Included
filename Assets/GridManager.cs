@@ -8,24 +8,25 @@ using UnityEngine.UI;
 public class GridManager : MonoBehaviour
 {
     public GameObject tilePrefab; // Prefab for the tile
+    public ButtonController buttonController;
+    public TextMeshProUGUI hoverText; // Public reference to the UI Text element
     public int width = 10; // Width of the grid
     public int height = 10; // Height of the grid
-    public TextMeshProUGUI hoverText; // Public reference to the UI Text element
-    public float thermalConductivitySpeedup = 100f; // max safe ~100
-    public float airflowSpeed = 0.00001f;
-    public ButtonController buttonController;
+    public float thermalConductivitySpeedup = 100f; // max safe ~250
+    public float airflowSpeed = 5f;
     public bool isPaused = false;
     public float gravity = 0.3f;
     public float friction;
 
     private Solid rock;
     private Material air;
-    private Material plutonium;
+    private Solid plutonium;
     private Solid aluminium;
-    private Material peltier;
+    private Solid peltier;
     private Solid rockwool;
     private Solid ice;
     private Liquid water;
+
 
     private Gas[] gasses;
     private TemperatureAffecting[] temperatureAffectingBuildings = new TemperatureAffecting[3]; //Should be a list. For some reason this script throws errors when attempting to make lists.
@@ -37,9 +38,9 @@ public class GridManager : MonoBehaviour
 
     private Sprite arrow;
 
+    private int updateCounter = 0; //to only make certain heavy tasks on some updates
 
-
-    public TileData<Material>[,] gridData; // 2D array to store tile states
+    public TileData[,] gridData; // 2D array to store tile states
 
     private bool isDragging = false; // To track if dragging started outside of UI elements
 
@@ -54,20 +55,18 @@ public class GridManager : MonoBehaviour
             new Gas { name = "Hydrogen", molarMass = 0.002f },
             new Gas { name = "Nitrogen", molarMass = 0.028f },
             new Gas { name = "Carbondioxide", molarMass = 0.044f },
-            new Gas { name = "water", molarMass = 0.018f}
+            new Gas { name = "Water", molarMass = 0.018f}
         };
 
 
- 
-        rock = new Solid("Rock", 0.8f, 3f, 2600f, 1983f, 1787, Resources.Load<Sprite>("rock"));
+        water = new Liquid("Water", 4, 2f, 1000, 2260f, Resources.Load<Sprite>("water"));
+        rock = new Solid("Rock (silica)", 0.8f, 3f, 2600f, 1983f, 1787, Resources.Load<Sprite>("rock"));
         air = new Material("Air", 2.0f, 0.0025f, 1.4f, Resources.Load<Sprite>("white"));
         plutonium = new Solid("RTG", 2.8f, 10f, 5000f, 10000, 0, Resources.Load<Sprite>("RTG100"));
         aluminium = new Solid("Aluminium", 0.9f, 205f, 2700f, 933f, 376f, Resources.Load<Sprite>("metal"));
         peltier = new Solid("Peltier", 2.0f, 0, 2000, 10000, 0, Resources.Load<Sprite>("peltier"));
-        rockwool = new Solid("Rockwool", 0.8f, 0.04f, 80f, 1983f, 1787, Resources.Load<Sprite>("rockwool"));
-        ice = new Solid("Ice", 2.1f, 2.2f, 1000, 273, 334, Resources.Load<Sprite>("ice"));
-        water = new Liquid("Water", 4, 2f, 0, 6f, 1000, 2260f, Resources.Load<Sprite>("water"));
-
+        rockwool = new Solid("Rockwool (silica)", 0.8f, 0.04f, 80f, 1983f, 1787, Resources.Load<Sprite>("rockwool"));
+        ice = new Solid("Ice", 2.1f, 2.2f, 900, 273, 3.34f, Resources.Load<Sprite>("ice"), water);
 
         buttonController.materials = new Material[] { aluminium, rock, rockwool, ice };
 
@@ -115,6 +114,8 @@ public class GridManager : MonoBehaviour
 
     void FixedUpdate()
     {
+        updateCounter++;
+        updateCounter = updateCounter % 10;
         if (!isPaused)
         {
             float deltaTime = Time.fixedDeltaTime;
@@ -147,13 +148,18 @@ public class GridManager : MonoBehaviour
                     if (x < width - 1)
                     {
                         TileData neighborX = gridData[x + 1, y];
-                        if (tile.isGas) 
+                        float tempDifference = tile.temperature - neighborX.temperature;
+                        float heatTransferPerSecond = Mathf.Min(tile.thermalConductivity, neighborX.thermalConductivity) * tempDifference;
+                        heatTransfer[x, y] -= heatTransferPerSecond;
+                        heatTransfer[x + 1, y] += heatTransferPerSecond;
+                    }
+                        /*if (tile.isGas) 
                         {
                             if (!neighborX.isGas) 
                             {
                                 GasTileData gasTile = tile as GasTileData;
                                 float tempDifference = tile.temperature - neighborX.temperature;
-                                float heatTransferPerSecond = Mathf.Min(gasTile.TotalGas()/1000, neighborX.material.thermalConductivity) * tempDifference;
+                                float heatTransferPerSecond = Mathf.Min(gasTile.thermalConductivity, neighborX.thermalConductivity) * tempDifference;
                                 heatTransfer[x, y] -= heatTransferPerSecond;
                                 heatTransfer[x + 1, y] += heatTransferPerSecond;
                             }   
@@ -164,13 +170,13 @@ public class GridManager : MonoBehaviour
                             {
                                 GasTileData gasTile = neighborX as GasTileData;
                                 float tempDifference = tile.temperature - neighborX.temperature;
-                                float heatTransferPerSecond = Mathf.Min(gasTile.TotalGas()/1000, tile.material.thermalConductivity) * tempDifference;
+                                float heatTransferPerSecond = Mathf.Min(gasTile.thermalConductivity, tile.thermalConductivity) * tempDifference;
                                 heatTransfer[x, y] -= heatTransferPerSecond;
                                 heatTransfer[x + 1, y] += heatTransferPerSecond;
                             } 
                             else //if both are solid
                             {
-                                float minThermalConductivity = Mathf.Min(tile.material.thermalConductivity, neighborX.material.thermalConductivity);
+                                float minThermalConductivity = Mathf.Min(tile.thermalConductivity, neighborX.thermalConductivity);
 
                                 float tempDifference = tile.temperature - neighborX.temperature;
                                 float heatTransferPerSecond = minThermalConductivity * tempDifference;
@@ -179,19 +185,24 @@ public class GridManager : MonoBehaviour
                                 heatTransfer[x, y] -= heatTransferPerSecond;
                                 heatTransfer[x + 1, y] += heatTransferPerSecond;
                             }
-                        }
-                            
-                    }
+                        } */
+
+                    
                     if (y < height - 1)
                     {
                         TileData neighborY = gridData[x, y + 1];
-                        if (tile.isGas)
+                        float tempDifference = tile.temperature - neighborY.temperature;
+                        float heatTransferPerSecond = Mathf.Min(tile.thermalConductivity, neighborY.thermalConductivity) * tempDifference;
+                        heatTransfer[x, y] -= heatTransferPerSecond;
+                        heatTransfer[x, y + 1] += heatTransferPerSecond;
+                    }
+                        /*if (tile.isGas)
                         {
                             if (!neighborY.isGas)
                             {
                                 GasTileData gasTile = tile as GasTileData;
                                 float tempDifference = tile.temperature - neighborY.temperature;
-                                float heatTransferPerSecond = Mathf.Min(gasTile.TotalGas()/1000, neighborY.material.thermalConductivity) * tempDifference;
+                                float heatTransferPerSecond = Mathf.Min(gasTile.TotalGas()/1000, neighborY.thermalConductivity) * tempDifference;
                                 heatTransfer[x, y] -= heatTransferPerSecond;
                                 heatTransfer[x, y  + 1] += heatTransferPerSecond;
                             }
@@ -202,13 +213,13 @@ public class GridManager : MonoBehaviour
                             {
                                 GasTileData gasTile = neighborY as GasTileData;
                                 float tempDifference = tile.temperature - neighborY.temperature;
-                                float heatTransferPerSecond = Mathf.Min(gasTile.TotalGas()/1000, tile.material.thermalConductivity) * tempDifference;
+                                float heatTransferPerSecond = Mathf.Min(gasTile.TotalGas()/1000, tile.thermalConductivity) * tempDifference;
                                 heatTransfer[x, y] -= heatTransferPerSecond;
                                 heatTransfer[x, y + 1] += heatTransferPerSecond;
                             }
                             else
                             {
-                                float minThermalConductivity = Mathf.Min(tile.material.thermalConductivity, neighborY.material.thermalConductivity);
+                                float minThermalConductivity = Mathf.Min(tile.thermalConductivity, neighborY.thermalConductivity);
 
                                 float tempDifference = tile.temperature - neighborY.temperature;
                                 float heatTransferPerSecond = minThermalConductivity * tempDifference;
@@ -217,8 +228,8 @@ public class GridManager : MonoBehaviour
                                 heatTransfer[x, y] -= heatTransferPerSecond;
                                 heatTransfer[x, y + 1] += heatTransferPerSecond;
                             }
-                        }   
-                    }
+                        }   */
+                    
                 }
             }
 
@@ -241,15 +252,16 @@ public class GridManager : MonoBehaviour
                     if (tile.isGas)
                     {
                         GasTileData gasTile = (GasTileData)tile;
-                        pressure[x, y] = tile.temperature * gasTile.TotalGas() * 0.00831f; //pressures in kPa
+                        if (gasTile.Evaporate() && buttonController.activeOverlay != buttonController.overlays[2]) //runs Evaporate on all gas tiles and changes sprite if appropriate
+                        {
+                            gasTile.tileObject.GetComponent<SpriteRenderer>().sprite = gasTile.Sprite;
+                        }
+                        gasTile.tileObject.GetComponent<SpriteRenderer>().color = gasTile.defaultColor;
+                        pressure[x, y] = tile.temperature * gasTile.TotalGas() * 0.00831f / (1.001f - gasTile.liquidMass/(gasTile?.liquid?.density ?? 1)); //pressures in kPa
                         //Debug.Log("pressure" + pressure[x, y]);
                     }
                 }
             }
-
-
-
-
 
             //calculate accelerations
             for (int x = 0; x < width; x++)
@@ -278,10 +290,60 @@ public class GridManager : MonoBehaviour
                             accelerationsY[x, y] = 2 * ((pressure[x, y] - pressure[x, y + 1]) / (tile.mass + neighborY.mass)) - gravity;
                             velocitiesY[x, y] += accelerationsY[x, y] * deltaTime * airflowSpeed;
                             //massflowY[x, y] = velocitiesY[x, y] * (tile.mass + neighborY.mass) / 2;
-                        }
+                        } 
                     }
                 }
             }
+
+            //move water
+            if (updateCounter == 0)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    for (int y = 0; y < height - 1; y++)
+                    {
+                        TileData tile = gridData[x, y];
+                        TileData neighborY = gridData[x, y + 1];
+
+                        if (tile.isGas && neighborY.isGas)
+                        {
+                            GasTileData gasNeighbor = (GasTileData)neighborY;
+                            GasTileData gasTile = (GasTileData)tile;
+                            gasTile.rainMass += gasNeighbor.rainMass + gasNeighbor.liquidMass; //unsuported liquid becomes rain
+                            gasTile.totalWater += gasNeighbor.rainMass + gasNeighbor.liquidMass;
+       
+                            gasNeighbor.totalWater -= gasNeighbor.rainMass + gasNeighbor.liquidMass;
+                            gasNeighbor.rainMass = 0;
+                            gasNeighbor.liquidMass = 0;
+                            if (gasTile.totalWater > 1000)
+                            {
+                                gasTile.isGas = false;
+                                gasNeighbor.liquidMass = gasTile.liquidMass - 1000;
+                                gasTile.liquidMass = 1000;
+                                gasTile.totalWater = 1000;
+                            }
+                            gasTile.tileObject.GetComponent<SpriteRenderer>().sprite = gasTile.Sprite;
+                        }
+                        else if (neighborY.isGas)
+                        {
+                            GasTileData gasTile = (GasTileData)neighborY;
+                            gasTile.liquidMass += gasTile.rainMass; //supported rain becomes "liquid"
+                            gasTile.rainMass = 0;
+                            if (buttonController.activeOverlay != buttonController.overlays[2])
+                                gasTile.tileObject.GetComponent<SpriteRenderer>().sprite = gasTile.Sprite;
+                        }
+
+                    }
+                    if (gridData[x, 0].isGas)
+                    {
+                        GasTileData tile = (GasTileData)gridData[x, 0];
+                        tile.liquidMass += tile.rainMass;
+                        tile.rainMass = 0;
+                        tile.tileObject.GetComponent<SpriteRenderer>().sprite = tile.Sprite;
+                    }
+                }
+            }
+
             //advectionX
             for (int x = 0; x < width - 1; x++)
             {
@@ -448,46 +510,52 @@ public class GridManager : MonoBehaviour
                 if (material[x, y] > 0.5f)
                 {
                     tileData = new SolidTileData(2600, temperature[x, y] * 60f + 250f, rock, newTile);
+                    tileData.OnStateChangeRequest += SwapTile;
                 }
                 else
                 {
                     float[] amounts = new float[5]{ Mathf.Pow(1.003f, (50 - y)) * 12, 0, Mathf.Pow(1.003f, (50 - y)) * 38, .15f, 0 };
-                    tileData = new GasTileData(temperature[x, y] * 60f + 250f, air, amounts, newTile);
+                    tileData = new GasTileData(temperature[x, y] * 60f + 250f, air, newTile, amounts, l: water);
                 }
-                newTile.GetComponent<SpriteRenderer>().sprite = tileData.material.sprite;
+                newTile.GetComponent<SpriteRenderer>().sprite = tileData.Sprite;
                 gridData[x, y] = tileData;
             }
         }
-        { //scope limiter
+        { //scope limiter for y and x, not elegant I know
             int y = 96;
             for (int x = 20; x < 30; x++)
             {
                 gridData[x, y] = new SolidTileData(aluminium.density, 300, aluminium, gridData[x, y].tileObject);
                 gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+                gridData[x, y].OnStateChangeRequest += SwapTile;
             }
             y = 28;
             for (int x = 45; x < 67; x++)
             {
                 gridData[x, y] = new SolidTileData(aluminium.density, 400, aluminium, gridData[x, y].tileObject);
                 gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+                gridData[x, y].OnStateChangeRequest += SwapTile;
             }
             y = 80;
             for (int x = 30; x < 50; x++)
             {
                 gridData[x, y] = new SolidTileData(aluminium.density, 300, aluminium, gridData[x, y].tileObject);
                 gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+                gridData[x, y].OnStateChangeRequest += SwapTile;
             }
             y = 30;
             for (int x = 66; x < 90; x++)
             {
                 gridData[x, y] = new SolidTileData(aluminium.density, 300, aluminium, gridData[x, y].tileObject);
                 gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+                gridData[x, y].OnStateChangeRequest += SwapTile;
             }
             y = 29;
             for (int x = 45; x < 90; x++)
             {
                 gridData[x, y] = new SolidTileData(rockwool.density, 300, rockwool, gridData[x, y].tileObject);
                 gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = rockwool.sprite;
+                gridData[x, y].OnStateChangeRequest += SwapTile;
             }
         }
         {
@@ -496,17 +564,21 @@ public class GridManager : MonoBehaviour
             {
                 gridData[x, y] = new SolidTileData(aluminium.density, 400, aluminium, gridData[x, y].tileObject);
                 gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+                gridData[x, y].OnStateChangeRequest += SwapTile;
             }
             x = 30;
             for (int y = 96; y > 70; y--)
             {
                 gridData[x, y] = new SolidTileData(aluminium.density, 200, aluminium, gridData[x, y].tileObject);
                 gridData[x, y].tileObject.GetComponent<SpriteRenderer>().sprite = aluminium.sprite;
+                gridData[x, y].OnStateChangeRequest += SwapTile;
             }
         }
         gridData[93, 7] = new SolidTileData(5000, 400, plutonium, gridData[93, 7].tileObject);
+        gridData[93, 7].OnStateChangeRequest += SwapTile;
 
         gridData[66, 29] = new SolidTileData(5000, 300, peltier, gridData[66, 29].tileObject);
+        gridData[66, 29].OnStateChangeRequest += SwapTile;
         gridData[93, 7].tileObject.AddComponent<RTG>();
         temperatureAffectingBuildings[0] = gridData[93, 7].tileObject.GetComponent<RTG>();
 
@@ -531,15 +603,17 @@ public class GridManager : MonoBehaviour
         {
             
             int i = (int)buttonController.GetActiveBuildButtonIndex();
-            Solid material = buttonController.materials[i]; 
+            Solid material = (Solid)buttonController.materials[i]; 
             GameObject hoveredTile = tileData.tileObject;
             if (tileData.isGas)
             {
-                gridData[Mathf.FloorToInt(hoveredTile.transform.position.x), Mathf.FloorToInt(hoveredTile.transform.position.y)] = new SolidTileData(material.density, 300f, material, hoveredTile);
+                TileData newTile = new SolidTileData(material.density, 300f, material, hoveredTile);
+                gridData[Mathf.FloorToInt(hoveredTile.transform.position.x), Mathf.FloorToInt(hoveredTile.transform.position.y)] = newTile;
+                newTile.OnStateChangeRequest += SwapTile;
             }
             else
             {
-                tileData.material = material;
+                ((SolidTileData)tileData).material = material;
                 tileData.mass = material.density;
                 hoveredTile.GetComponent<SpriteRenderer>().sprite = material.sprite;
                 // change material and set sprite
@@ -547,7 +621,7 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    TileData<Material> Locate()
+    TileData Locate()
     {
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
@@ -568,6 +642,17 @@ public class GridManager : MonoBehaviour
             }
         }
         return tileData;
+    }
+
+    public void SwapTile(int x, int y, TileData newTile)
+    {
+        if (newTile.isGas)
+        {
+            ((GasTileData)newTile).material = air;
+        }
+        gridData[x, y] = newTile;
+
+        // Additional logic if needed, like updating the game state or UI
     }
 
     private bool IsPointerOverUIObject()
@@ -591,6 +676,7 @@ public class GridManager : MonoBehaviour
                 int y = Mathf.FloorToInt(tileData.tileObject.transform.position.y);
                 float totalGas = (tileData as GasTileData).TotalGas();
                 hoverText.text += 
+                    "\nPressure: " + pressure[x,y] + " kPa" +
                     "\n\nAirflows:\nTop: " + velocitiesY[x, y] + 
                     "\nBottom: " + (y == 0 ? 0 : velocitiesY[x, y - 1]) + 
                     "\nLeft: " + (x == 0 ? 0 : velocitiesX[x - 1, y]) + 
@@ -641,7 +727,7 @@ public class GridManager : MonoBehaviour
             for (int y = 0; y < height; y++)
             {
                 TileData tile = gridData[x, y];
-                tile.tileObject.GetComponent<SpriteRenderer>().sprite = tile.material.sprite;
+                tile.tileObject.GetComponent<SpriteRenderer>().sprite = tile.Sprite;
                 tile.tileObject.transform.rotation = Quaternion.Euler(0, 0, 0);
             }
         }
@@ -716,14 +802,15 @@ public class GridManager : MonoBehaviour
             for (int y = 0; y < height; y++)
             {
                 //Color tileColor = gridData[x, y].material.name == "rock" ? Color.black : (gridData[x, y].material.name == "plutonium" ? Color.red : Color.white);
-                if (gridData[x, y].isGas)
+                gridData[x, y].tileObject.GetComponent<SpriteRenderer>().color = gridData[x,y].defaultColor;
+                /* if (gridData[x, y].isGas && !gridData[x, y].hasLiquid)
                 {
                     gridData[x, y].tileObject.GetComponent<SpriteRenderer>().color = Color.grey;
                 }
                 else
                 {
                     gridData[x, y].tileObject.GetComponent<SpriteRenderer>().color = Color.white;
-                }
+                } */
 
             }
         }

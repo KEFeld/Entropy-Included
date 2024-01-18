@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using TMPro;
 
 public enum ButtonState
 {
@@ -17,11 +19,13 @@ public class ButtonController : MonoBehaviour
 
     public Button[] overlays; // Assign your buttons in the inspector
     public Button activeOverlay = null; // Keep track of the active button
+
     public delegate void ButtonClickedHandler(Button clickedButton);
     public static event ButtonClickedHandler OnOverlayClicked;
 
     public Button[] buildButtons; // Assign your buttons in the inspector
     public Button activeBuild = null; // Keep track of the active button
+    public GameObject tooltipPrefab;
     public delegate void BuildButtonClickedHandler(Button clickedButton);
     public static event BuildButtonClickedHandler OnBuildClicked;
     public Material[] materials;
@@ -33,7 +37,11 @@ public class ButtonController : MonoBehaviour
         foreach (Button btn in overlays)
         {
             btn.onClick.AddListener(() => OnOverlayClickedInternal(btn));
+            
         }
+        AddTooltipToButton(overlays[0], "Temperature overlay");
+        AddTooltipToButton(overlays[1], "Pressure overlay");
+        AddTooltipToButton(overlays[2], "Wind overlay");
     }
 
     private void Update()
@@ -114,6 +122,9 @@ public class ButtonController : MonoBehaviour
             GameObject buttonObj = Instantiate(buttonPrefab, canvas.transform);
             buttonObj.transform.localScale = Vector3.one;
 
+   
+
+
             // Set button position and size
             RectTransform rectTransform = buttonObj.GetComponent<RectTransform>();
             rectTransform.anchoredPosition = new Vector2(startX, yOffset);
@@ -126,12 +137,50 @@ public class ButtonController : MonoBehaviour
             buildButtons[i] = buttonObj.GetComponent<Button>();
 
             startX += buttonSize + spacing;
+
+            // Tooltip functionality
+            AddTooltipToButton(buildButtons[i], "Place " + materials[i].name + " tiles.");
         }
         foreach (Button btn in buildButtons)
         {
             btn.onClick.AddListener(() => OnBuildClickedInternal(btn));
         }
     }
+
+    private void AddTooltipToButton(Button button, string tooltipText)
+    {
+        // Assign event listeners for mouse hover
+        EventTrigger trigger = button.gameObject.AddComponent<EventTrigger>();
+
+        EventTrigger.Entry entryEnter = new EventTrigger.Entry();
+        entryEnter.eventID = EventTriggerType.PointerEnter;
+        entryEnter.callback.AddListener((data) => { OnHoverEnter((PointerEventData)data, tooltipText); });
+        trigger.triggers.Add(entryEnter);
+
+        EventTrigger.Entry entryExit = new EventTrigger.Entry();
+        entryExit.eventID = EventTriggerType.PointerExit;
+        entryExit.callback.AddListener((data) => { OnHoverExit((PointerEventData)data); });
+        trigger.triggers.Add(entryExit);
+    }
+
+    private void OnHoverEnter(PointerEventData eventData, string tooltipText)
+    {
+        // Show tooltip
+        tooltipPrefab.SetActive(true);
+        tooltipPrefab.GetComponentInChildren<TextMeshProUGUI>().text = tooltipText;
+        Vector2 textSize = new Vector2(tooltipPrefab.GetComponentInChildren<TextMeshProUGUI>().preferredWidth, tooltipPrefab.GetComponentInChildren<TextMeshProUGUI>().preferredHeight);
+        tooltipPrefab.GetComponent<RectTransform>().sizeDelta = textSize + new Vector2(10,10);
+
+        // Adjust position of the tooltip based on mouse position
+        tooltipPrefab.transform.position = eventData.position + ((eventData.position.y > 300) ? new Vector2(-50, -50) : new Vector2(0, 25));
+    }
+
+    private void OnHoverExit(PointerEventData eventData)
+    {
+        // Hide tooltip
+        tooltipPrefab.SetActive(false);
+    }
+
     public int? GetActiveBuildButtonIndex()
     {
         if (buildButtons == null)

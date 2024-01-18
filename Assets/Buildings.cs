@@ -8,7 +8,7 @@ using UnityEngine.UI;
 
 public interface TemperatureAffecting
 {
-    void UpdateTemperature(float[,] heatTransfer, TileData<Material>[,] gridData);
+    void UpdateTemperature(float[,] heatTransfer, TileData[,] gridData);
 }
 
 public class Buildings : MonoBehaviour
@@ -49,7 +49,7 @@ public class Peltier : Buildings, TemperatureAffecting
     float carnot;
     float flowIn;
 
-    public void UpdateTemperature(float[,] heatTransfer, TileData<Material>[,] gridData)
+    public void UpdateTemperature(float[,] heatTransfer, TileData[,] gridData)
     {
         flipped = -1;
         power = intendedPower;
@@ -110,7 +110,7 @@ public class RTG : Buildings, TemperatureAffecting
 
     }
 
-    public void UpdateTemperature(float[,] heatTransfer, TileData<Material>[,] gridData)
+    public void UpdateTemperature(float[,] heatTransfer, TileData[,] gridData)
     {
         heatTransfer[x, y] += power;
     }
@@ -131,7 +131,7 @@ public class TemperatureFixer : Buildings, TemperatureAffecting
 
     }
 
-    public void UpdateTemperature(float[,] heatTransfer, TileData<Material>[,] gridData)
+    public void UpdateTemperature(float[,] heatTransfer, TileData[,] gridData)
     {
         gridData[x, y].temperature = temperatureTarget;
     }
