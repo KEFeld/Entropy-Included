@@ -322,7 +322,8 @@ public class GridManager : MonoBehaviour
                                 gasTile.liquidMass = 1000;
                                 gasTile.totalWater = 1000;
                             }
-                            gasTile.tileObject.GetComponent<SpriteRenderer>().sprite = gasTile.Sprite;
+                            if (buttonController.activeOverlay != buttonController.overlays[2]) 
+                                gasTile.tileObject.GetComponent<SpriteRenderer>().sprite = gasTile.Sprite;
                         }
                         else if (neighborY.isGas)
                         {

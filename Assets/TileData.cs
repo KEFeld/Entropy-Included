@@ -268,7 +268,7 @@ public class GasTileData : TileData //really FluidTileData handles both liquids 
         string text = "Temperature: " + temperature.ToString("F4") + "K";
         if (totalWater > 0)
         {
-            liquidText = "\nLiquid: water\nMass: " + liquidMass.ToString("F3") + " kg" +
+            liquidText = "\n\nLiquid: water\nMass: " + liquidMass.ToString("F3") + " kg" +
                 "\nFog: " + fogMass.ToString("F3") + " kg" +
                 "\nRain: " + rainMass.ToString("F3") + " kg" + 
                 "\nTotal Water: " + totalWater.ToString("F3") + " kg\n";
