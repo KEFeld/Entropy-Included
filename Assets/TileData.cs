@@ -20,7 +20,7 @@ public abstract class TileData
     public float temperature;
     public float mass;
     //public Material material;
-    public GameObject tileObject; // Reference to the tile GameObject
+    public GameObject tileObject;
 
     public abstract Sprite Sprite { get; }
     public abstract Color defaultColor { get; }
@@ -241,7 +241,7 @@ public class GasTileData : TileData //really FluidTileData handles both liquids 
        
             gasses[4] -= discrepancy;
             totalWater += change;
-            ChangeTemperature(change * /*liquid.heatOfVaporization*/ 2260*10);
+            ChangeTemperature(change * /*liquid.heatOfVaporization*/ 2260*10); //fudge for now, only water
             isGas = (liquidMass / (liquid?.density ?? 1) < 0.99);
 
         }

@@ -37,7 +37,7 @@ public class CameraController : MonoBehaviour
         if (newZoom != Camera.main.orthographicSize)
         {
             Vector3 mouseWorldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            Vector3 direction = Camera.main.transform.position - mouseWorldPosition; // Invert the direction calculation
+            Vector3 direction = Camera.main.transform.position - mouseWorldPosition; 
             float zoomRatio = (newZoom - Camera.main.orthographicSize) / Camera.main.orthographicSize;
             Camera.main.transform.position += direction * zoomRatio;
             Camera.main.orthographicSize = newZoom;

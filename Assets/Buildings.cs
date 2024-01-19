@@ -18,14 +18,12 @@ public class Buildings : MonoBehaviour
     public GridManager gridManager;
     public List<int> test = new List<int>();
     
-    // Start is called before the first frame update
     public virtual void Start()
     {
         x = Mathf.FloorToInt(transform.position.x);
         y = Mathf.FloorToInt(transform.position.y);   
     }
 
-    // Update is called once per frame
     void Update()
     {
         

@@ -9,7 +9,7 @@ public enum ButtonState
     Button2,
     Button3,
     Button4
-    // Add more states if you have more buttons
+
 }
 
 public class ButtonController : MonoBehaviour
@@ -17,14 +17,14 @@ public class ButtonController : MonoBehaviour
     public GameObject buttonPrefab;
     public Canvas canvas;
 
-    public Button[] overlays; // Assign your buttons in the inspector
-    public Button activeOverlay = null; // Keep track of the active button
+    public Button[] overlays; 
+    public Button activeOverlay = null; 
 
     public delegate void ButtonClickedHandler(Button clickedButton);
     public static event ButtonClickedHandler OnOverlayClicked;
 
-    public Button[] buildButtons; // Assign your buttons in the inspector
-    public Button activeBuild = null; // Keep track of the active button
+    public Button[] buildButtons; 
+    public Button activeBuild = null; 
     public GameObject tooltipPrefab;
     public delegate void BuildButtonClickedHandler(Button clickedButton);
     public static event BuildButtonClickedHandler OnBuildClicked;
@@ -110,10 +110,10 @@ public class ButtonController : MonoBehaviour
     public void CreateBuildButtons(Material[] materials)
     {
      
-        float buttonSize = 30; // Example size, you can adjust this
-        float spacing = 10; // Spacing between buttons
+        float buttonSize = 30;
+        float spacing = 10; 
         float startX = spacing;
-        float yOffset = buttonSize + spacing; // Adjusting Y offset to move buttons up
+        float yOffset = buttonSize + spacing; 
 
         buildButtons = new Button[materials.Length];
 
@@ -177,7 +177,6 @@ public class ButtonController : MonoBehaviour
 
     private void OnHoverExit(PointerEventData eventData)
     {
-        // Hide tooltip
         tooltipPrefab.SetActive(false);
     }
 

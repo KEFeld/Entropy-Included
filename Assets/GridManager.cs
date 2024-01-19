@@ -7,12 +7,12 @@ using UnityEngine.UI;
 
 public class GridManager : MonoBehaviour
 {
-    public GameObject tilePrefab; // Prefab for the tile
+    public GameObject tilePrefab; 
     public ButtonController buttonController;
-    public TextMeshProUGUI hoverText; // Public reference to the UI Text element
-    public int width = 10; // Width of the grid
-    public int height = 10; // Height of the grid
-    public float thermalConductivitySpeedup = 100f; // max safe ~250
+    public TextMeshProUGUI hoverText; 
+    public int width = 10; 
+    public int height = 10; 
+    public float thermalConductivitySpeedup = 100f; // max safe ~250 at 100 updates per second, half that at 50 ups
     public float airflowSpeed = 5f;
     public bool isPaused = false;
     public float gravity = 0.3f;
@@ -40,7 +40,7 @@ public class GridManager : MonoBehaviour
 
     private int updateCounter = 0; //to only make certain heavy tasks on some updates
 
-    public TileData[,] gridData; // 2D array to store tile states
+    public TileData[,] gridData; 
 
     private bool isDragging = false; // To track if dragging started outside of UI elements
 
@@ -72,7 +72,7 @@ public class GridManager : MonoBehaviour
 
         buttonController.CreateBuildButtons(buttonController.materials);
 
-        hoverText.text = ""; // Initialize the text as empty
+        hoverText.text = ""; 
         ButtonController.OnOverlayClicked += HandleOverlayClicked;
 
         CreateGrid();
@@ -83,8 +83,6 @@ public class GridManager : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Space)) isPaused = !isPaused;
 
-
-        // Check for the initial mouse down event
         if (Input.GetMouseButtonDown(0) && !IsPointerOverUIObject())
         {
             isDragging = true; // Start dragging if the click was not on a UI element
@@ -112,7 +110,7 @@ public class GridManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape)) ResetTilesColorsToDefault();
     }
 
-    void FixedUpdate()
+    void FixedUpdate() //huge long method, needs to be broken up into smaller methods for readability
     {
         updateCounter++;
         updateCounter = updateCounter % 10;
@@ -345,7 +343,7 @@ public class GridManager : MonoBehaviour
                 }
             }
 
-            //advectionX
+            //advection of velocity - X
             for (int x = 0; x < width - 1; x++)
             {
                 for (int y = 0; y < height; y++)
@@ -368,7 +366,7 @@ public class GridManager : MonoBehaviour
                     }
                 }
             }
-            //advectionY
+            //advection of velocity - Y
             for (int x = 0; x < width; x++)
             {
                 for (int y = 0; y < height - 1; y++)
@@ -522,7 +520,7 @@ public class GridManager : MonoBehaviour
                 gridData[x, y] = tileData;
             }
         }
-        { //scope limiter for y and x, not elegant I know
+        { //scope limiter for y and x, setting up specific tiles for testing, not elegant I know!
             int y = 96;
             for (int x = 20; x < 30; x++)
             {
@@ -632,11 +630,9 @@ public class GridManager : MonoBehaviour
         {
             GameObject hoveredTile = hit.collider.gameObject;
 
-            // Calculate the grid position of the hovered tile
             int x = Mathf.FloorToInt(hoveredTile.transform.position.x);
             int y = Mathf.FloorToInt(hoveredTile.transform.position.y);
 
-            // Check if the tile is within the grid bounds
             if (x >= 0 && x < width && y >= 0 && y < height)
             {
                 tileData = gridData[x, y];
@@ -653,12 +649,10 @@ public class GridManager : MonoBehaviour
         }
         gridData[x, y] = newTile;
 
-        // Additional logic if needed, like updating the game state or UI
     }
 
     private bool IsPointerOverUIObject()
     {
-        // Check if the pointer is over a UI element
         return EventSystem.current.IsPointerOverGameObject();
     }
 
@@ -693,7 +687,7 @@ public class GridManager : MonoBehaviour
 
     private void HandleOverlayClicked(Button clickedButton)
     {
-        // Check which button was clicked and update colors accordingly
+
 
         if (buttonController.activeOverlay == buttonController.overlays[2])
         {
@@ -823,7 +817,7 @@ public class GridManager : MonoBehaviour
         int hi = Convert.ToInt32(Math.Floor(hue / 60)) % 6;
         double f = hue / 60 - Math.Floor(hue / 60);
 
-        value = Mathf.Clamp01((float)value); // Ensure value is in 0-1 range
+        value = Mathf.Clamp01((float)value);
         float v = (float)value;
         float p = v * (1 - (float)saturation);
         float q = v * (1 - (float)(f * saturation));
